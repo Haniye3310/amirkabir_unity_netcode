@@ -61,12 +61,17 @@ public class Server : MonoBehaviour
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
-                    uint number = stream.ReadUInt();
-                    Debug.Log($"Got {number} from a client, adding 2 to it.");
-                    number += 2;
+                    ClientData clientData = new ClientData();
+                    clientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
 
+                    Debug.Log($"SERVER_SIDE_RECEIVED:\nPlayerId:{clientData.PlayerID} | InputDirection:{clientData.InputDirection}");
+
+                    ServerData serverData = new ServerData();
+                    serverData.PlayerID = clientData.PlayerID;
+                    serverData.PlayerPosition = new Vector3(100, 150, 100);
+                    
                     m_Driver.BeginSend(NetworkPipeline.Null, m_Connections[i], out var writer);
-                    writer.WriteUInt(number);
+                    writer.WriteBytes(serverData.ToByteArray());
                     m_Driver.EndSend(writer);
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)

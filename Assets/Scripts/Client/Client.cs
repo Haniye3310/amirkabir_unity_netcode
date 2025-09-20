@@ -35,17 +35,19 @@ public class Client:MonoBehaviour
         {
             if (cmd == NetworkEvent.Type.Connect)
             {
+                ClientData clientData = new ClientData();
+                clientData.PlayerID = 1;
+                clientData.InputDirection = new Vector2(10, 10);
                 Debug.Log("We are now connected to the server.");
-
-                uint value = 1;
                 m_Driver.BeginSend(m_Connection, out var writer);
-                writer.WriteUInt(value);
+                writer.WriteBytes(clientData.ToByteArray());
                 m_Driver.EndSend(writer);
             }
             else if (cmd == NetworkEvent.Type.Data)
             {
-                uint value = stream.ReadUInt();
-                Debug.Log($"Got the value {value} back from the server.");
+                ServerData serverData = new ServerData();
+                serverData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                Debug.Log($"CLIENT_SIDE_RECEIVED:\nPlayerID:{serverData.PlayerID} | PlayerPosition:{serverData.PlayerPosition}");
 
                 m_Connection.Disconnect(m_Driver);
                 m_Connection = default;
