@@ -9,6 +9,7 @@ public class Client:MonoBehaviour
     [SerializeField] CTConfig _configData;
     private ClientData _clientData = new ClientData();
     private ServerData _latestServerData = new ServerData();
+    Vector3 _direction;
 
     float _timerCounter;
     private float _dataSyncingInterval = 0.05f;
@@ -45,6 +46,7 @@ public class Client:MonoBehaviour
             {
 
                 _latestServerData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                _direction = (_latestServerData.PlayerPosition - _gameObject.transform.position);
             }
         }
 
@@ -63,7 +65,7 @@ public class Client:MonoBehaviour
         }
         if (_gameObject)
         {
-            _gameObject.transform.position = _latestServerData.PlayerPosition;
+            _gameObject.transform.Translate(_direction * Time.deltaTime);
         }
     }
 }

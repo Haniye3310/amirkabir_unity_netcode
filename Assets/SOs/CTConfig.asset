@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: CTConfig
   m_EditorClassIdentifier: 
   _playerPrefab: {fileID: 5733589717806251520, guid: 5f6ba245d0414ef45a5634ce9cb869db, type: 3}
-  _clientUpdateInterval: 0.05
+  _clientUpdateInterval: 1

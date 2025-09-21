@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: SRConfig
   m_EditorClassIdentifier: 
   _playerPrefab: {fileID: 212087241480965089, guid: 9a4206f077abdc14089261c8103e007e, type: 3}
-  _serverUpdateInterval: 0.05
+  _serverUpdateInterval: 1
