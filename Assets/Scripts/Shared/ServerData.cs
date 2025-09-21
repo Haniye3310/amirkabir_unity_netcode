@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-public struct ServerData
+public class ServerData
 {
     public int PlayerID; //4 bytes
     public Vector3 PlayerPosition; //12 bytes

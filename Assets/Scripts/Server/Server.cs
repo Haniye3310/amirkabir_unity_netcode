@@ -7,8 +7,15 @@ public class Server : MonoBehaviour
     NetworkDriver m_Driver;
     NativeList<NetworkConnection> m_Connections;
 
+    [SerializeField] SRConfig _configData;
+    ServerData _serverData =  new ServerData();
+    ClientData _clientData = new ClientData();
+    float _timerCounter;
+    GameObject _gameObject;
+
     void Start()
     {
+        _timerCounter = Time.time;
         m_Driver = NetworkDriver.Create();
         m_Connections = new NativeList<NetworkConnection>(16, Allocator.Persistent);
 
@@ -50,6 +57,7 @@ public class Server : MonoBehaviour
         while ((c = m_Driver.Accept()) != default)
         {
             m_Connections.Add(c);
+
             Debug.Log("Accepted a connection.");
         }
 
@@ -61,18 +69,7 @@ public class Server : MonoBehaviour
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
-                    ClientData clientData = new ClientData();
-                    clientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
-
-                    Debug.Log($"SERVER_SIDE_RECEIVED:\nPlayerId:{clientData.PlayerID} | InputDirection:{clientData.InputDirection}");
-
-                    ServerData serverData = new ServerData();
-                    serverData.PlayerID = clientData.PlayerID;
-                    serverData.PlayerPosition = new Vector3(100, 150, 100);
-                    
-                    m_Driver.BeginSend(NetworkPipeline.Null, m_Connections[i], out var writer);
-                    writer.WriteBytes(serverData.ToByteArray());
-                    m_Driver.EndSend(writer);
+                    _clientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -82,6 +79,30 @@ public class Server : MonoBehaviour
                 }
 
             }
+
+            
         }
+        if (_timerCounter + _configData.ServerUpdateInterval < Time.time)
+        {
+            if (m_Connections.Length > 0)
+            {
+                m_Driver.BeginSend(NetworkPipeline.Null, m_Connections[0], out var writer);
+                writer.WriteBytes(_serverData.ToByteArray());
+                m_Driver.EndSend(writer);
+            }
+            _timerCounter = Time.time;
+        }
+        if(_gameObject == null&& _clientData.PlayerID != -1)
+        {
+            _gameObject = GameObject.Instantiate(_configData.PlayerPrefab, new Vector3(0f, 2, 0f), Quaternion.identity);
+            _serverData.PlayerID = 1;
+        }
+        else
+        {
+            Vector3 moveDirection = new Vector3(_clientData.InputDirection.x, 0, _clientData.InputDirection.y);
+            _gameObject.transform.Translate(moveDirection * Time.deltaTime);
+            _serverData.PlayerPosition = _gameObject.transform.position;
+        }
+        
     }
 }

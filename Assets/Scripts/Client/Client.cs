@@ -1,4 +1,3 @@
-using Unity.Collections;
 using Unity.Networking.Transport;
 using UnityEngine;
 
@@ -6,7 +5,13 @@ public class Client:MonoBehaviour
 {
     NetworkDriver m_Driver;
     NetworkConnection m_Connection;
+    GameObject _gameObject;
+    [SerializeField] CTConfig _configData;
+    private ClientData _clientData = new ClientData();
+    private ServerData _latestServerData = new ServerData();
 
+    float _timerCounter;
+    private float _dataSyncingInterval = 0.05f;
     void Start()
     {
         m_Driver = NetworkDriver.Create();
@@ -35,23 +40,30 @@ public class Client:MonoBehaviour
         {
             if (cmd == NetworkEvent.Type.Connect)
             {
-                ClientData clientData = new ClientData();
-                clientData.PlayerID = 1;
-                clientData.InputDirection = new Vector2(10, 10);
-                Debug.Log("We are now connected to the server.");
-                m_Driver.BeginSend(m_Connection, out var writer);
-                writer.WriteBytes(clientData.ToByteArray());
-                m_Driver.EndSend(writer);
             }
             else if (cmd == NetworkEvent.Type.Data)
             {
-                ServerData serverData = new ServerData();
-                serverData.FromByteArray(DataConverter.StreamDataToByteList(stream));
-                Debug.Log($"CLIENT_SIDE_RECEIVED:\nPlayerID:{serverData.PlayerID} | PlayerPosition:{serverData.PlayerPosition}");
 
-                m_Connection.Disconnect(m_Driver);
-                m_Connection = default;
+                _latestServerData.FromByteArray(DataConverter.StreamDataToByteList(stream));
             }
+        }
+
+        if (_timerCounter + _configData.ClientUpdateInterval < Time.time)
+        {
+            m_Driver.BeginSend(m_Connection, out var writer);
+            writer.WriteBytes(_clientData.ToByteArray());
+            m_Driver.EndSend(writer);
+            _timerCounter = Time.time;
+        }
+        _clientData.InputDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+
+        if (_gameObject == null)
+        {
+            _gameObject = GameObject.Instantiate(_configData.PlayerPrefab);
+        }
+        if (_gameObject)
+        {
+            _gameObject.transform.position = _latestServerData.PlayerPosition;
         }
     }
 }
