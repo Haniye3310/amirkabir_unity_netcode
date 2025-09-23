@@ -1,108 +1,120 @@
 using Unity.Collections;
 using Unity.Networking.Transport;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Linq;
 
 public class Server : MonoBehaviour
 {
-    NetworkDriver m_Driver;
-    NativeList<NetworkConnection> m_Connections;
+    NetworkDriver _driver;
+
+    private ServerData _serverData = new ServerData();
+    private List<PlayerData> _playerDataList;
 
     [SerializeField] SRConfig _configData;
-    ServerData _serverData =  new ServerData();
-    ClientData _clientData = new ClientData();
     float _timerCounter;
-    GameObject _gameObject;
+    int _playerIdIndex = -1;
 
     void Start()
     {
         _timerCounter = Time.time;
-        m_Driver = NetworkDriver.Create();
-        m_Connections = new NativeList<NetworkConnection>(16, Allocator.Persistent);
+        _driver = NetworkDriver.Create();
+        _playerDataList = new List<PlayerData>(16);
 
         var endpoint = NetworkEndpoint.AnyIpv4.WithPort(7777);
-        if (m_Driver.Bind(endpoint) != 0)
+        if (_driver.Bind(endpoint) != 0)
         {
             Debug.LogError("Failed to bind to port 7777.");
             return;
         }
-        m_Driver.Listen();
+        _driver.Listen();
     }
 
 
     void OnDestroy()
     {
-        if (m_Driver.IsCreated)
+        if (_driver.IsCreated)
         {
-            m_Driver.Dispose();
-            m_Connections.Dispose();
+            _driver.Dispose();
         }
     }
 
     void Update()
     {
-        m_Driver.ScheduleUpdate().Complete();
+        _driver.ScheduleUpdate().Complete();
 
         // Clean up connections.
-        for (int i = 0; i < m_Connections.Length; i++)
+        for (int i = 0; i < _playerDataList.Count; i++)
         {
-            if (!m_Connections[i].IsCreated)
+            if (!_playerDataList[i].NetworkConnection.IsCreated)
             {
-                m_Connections.RemoveAtSwapBack(i);
+                _playerDataList.RemoveAtSwapBack(i);
                 i--;
             }
         }
 
         // Accept new connections.
         NetworkConnection c;
-        while ((c = m_Driver.Accept()) != default)
+        while ((c = _driver.Accept()) != default)
         {
-            m_Connections.Add(c);
+            PlayerData connectionData = new PlayerData();
+            connectionData.NetworkConnection = c;
+            _playerIdIndex++;
+            connectionData.ClientData.PlayerID = _playerIdIndex;
+            _playerDataList.Add(connectionData);
+            connectionData.GameObject = GameObject.Instantiate(_configData.PlayerPrefab, new Vector3(0f, 2, 0f), Quaternion.identity);
+            PlayerServerData playerData = new PlayerServerData();
+            playerData.PlayerID = connectionData.ClientData.PlayerID;
+            _serverData.PlayerDataList.Add(playerData);
+
+            _driver.BeginSend(NetworkPipeline.Null,c, out var writer);
+            writer.WriteInt(_playerIdIndex);
+            _driver.EndSend(writer);
 
             Debug.Log("Accepted a connection.");
         }
 
-        for (int i = 0; i < m_Connections.Length; i++)
+        for (int i = 0; i < _playerDataList.Count; i++)
         {
             DataStreamReader stream;
             NetworkEvent.Type cmd;
-            while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty)
+            while ((cmd = _driver.PopEventForConnection(_playerDataList[i].NetworkConnection, out stream)) != NetworkEvent.Type.Empty)
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
-                    _clientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                    _playerDataList[i].ClientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
                     Debug.Log("Client disconnected from the server.");
-                    m_Connections[i] = default;
+                    _playerDataList[i] = default;
                     break;
                 }
-
             }
-
-            
         }
         if (_timerCounter + _configData.ServerUpdateInterval < Time.time)
         {
-            if (m_Connections.Length > 0)
+            for (int i = 0; i < _playerDataList.Count; i++)
             {
-                m_Driver.BeginSend(NetworkPipeline.Null, m_Connections[0], out var writer);
+                _driver.BeginSend(NetworkPipeline.Null, _playerDataList[i].NetworkConnection, out var writer);
                 writer.WriteBytes(_serverData.ToByteArray());
-                m_Driver.EndSend(writer);
+                _driver.EndSend(writer);
             }
             _timerCounter = Time.time;
         }
-        if(_gameObject == null&& _clientData.PlayerID != -1)
+
+        //game loop
         {
-            _gameObject = GameObject.Instantiate(_configData.PlayerPrefab, new Vector3(0f, 2, 0f), Quaternion.identity);
-            _serverData.PlayerID = 1;
+            for (int i = 0; i < _playerDataList.Count; i++)
+            {
+
+                Vector3 moveDirection = new Vector3
+                    (_playerDataList[i].ClientData.InputDirection.x, 0, _playerDataList[i].ClientData.InputDirection.y);
+                PlayerServerData playerData = _serverData.PlayerDataList.First(p => p.PlayerID == i);
+                _playerDataList[i].GameObject.transform.Translate(moveDirection * Time.deltaTime);
+                playerData.PlayerPosition = _playerDataList[i].GameObject.transform.position;
+
+            }
         }
-        else
-        {
-            Vector3 moveDirection = new Vector3(_clientData.InputDirection.x, 0, _clientData.InputDirection.y);
-            _gameObject.transform.Translate(moveDirection * Time.deltaTime);
-            _serverData.PlayerPosition = _gameObject.transform.position;
-        }
-        
     }
 }

@@ -1,7 +1,10 @@
 using System;
 using UnityEngine;
 
-public class ClientData
+/// <summary>
+/// Contains those data that's sent from client to server.
+/// </summary>
+public struct ClientData
 {
     public int PlayerID;
     public Vector2 InputDirection;

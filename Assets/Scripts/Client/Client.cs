@@ -1,71 +1,99 @@
+using System.Collections.Generic;
+using System.Linq;
 using Unity.Networking.Transport;
 using UnityEngine;
+/// <summary>
+/// Contains client side scene data (such as gameobject) for each player.
+/// </summary>
+public class PlayerSceneData
+{
+    public int ID;
+    public GameObject GameObject;
+    public Vector3 Direction;
+}
 
 public class Client:MonoBehaviour
 {
-    NetworkDriver m_Driver;
-    NetworkConnection m_Connection;
-    GameObject _gameObject;
+    NetworkDriver _driver;
+    NetworkConnection _connection;
     [SerializeField] CTConfig _configData;
     private ClientData _clientData = new ClientData();
     private ServerData _latestServerData = new ServerData();
-    Vector3 _direction;
-
+    List<PlayerSceneData> _players = new List<PlayerSceneData>();
     float _timerCounter;
-    private float _dataSyncingInterval = 0.05f;
     void Start()
     {
-        m_Driver = NetworkDriver.Create();
+        _driver = NetworkDriver.Create();
 
         var endpoint = NetworkEndpoint.LoopbackIpv4.WithPort(7777);
-        m_Connection = m_Driver.Connect(endpoint);
+        _connection = _driver.Connect(endpoint);
     }
 
     void OnDestroy()
     {
-        m_Driver.Dispose();
+        _driver.Dispose();
     }
 
     void Update()
     {
-        m_Driver.ScheduleUpdate().Complete();
+        _driver.ScheduleUpdate().Complete();
 
-        if (!m_Connection.IsCreated)
+        if (!_connection.IsCreated)
         {
             return;
         }
 
         Unity.Collections.DataStreamReader stream;
         NetworkEvent.Type cmd;
-        while ((cmd = m_Connection.PopEvent(m_Driver, out stream)) != NetworkEvent.Type.Empty)
+        while ((cmd = _connection.PopEvent(_driver, out stream)) != NetworkEvent.Type.Empty)
         {
             if (cmd == NetworkEvent.Type.Connect)
             {
+
             }
             else if (cmd == NetworkEvent.Type.Data)
             {
 
-                _latestServerData.FromByteArray(DataConverter.StreamDataToByteList(stream));
-                _direction = (_latestServerData.PlayerPosition - _gameObject.transform.position);
+                if (stream.Length == 4)
+                {
+                    _clientData.PlayerID = stream.ReadInt();                    
+                }
+                else
+                {
+                    _latestServerData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                }
+
+                foreach (PlayerServerData p in _latestServerData.PlayerDataList)
+                {
+                    PlayerSceneData playerSceneData = _players.FirstOrDefault(x => x.ID == p.PlayerID);
+
+                    if (playerSceneData == null)
+                    {
+                        playerSceneData = new PlayerSceneData();
+                        playerSceneData.GameObject = GameObject.Instantiate(_configData.PlayerPrefab);
+                        playerSceneData.ID = p.PlayerID;
+                        _players.Add(playerSceneData);
+                    }
+
+                    playerSceneData.Direction = (p.PlayerPosition - playerSceneData.GameObject.transform.position);
+                }                
             }
         }
 
-        if (_timerCounter + _configData.ClientUpdateInterval < Time.time)
-        {
-            m_Driver.BeginSend(m_Connection, out var writer);
-            writer.WriteBytes(_clientData.ToByteArray());
-            m_Driver.EndSend(writer);
-            _timerCounter = Time.time;
-        }
         _clientData.InputDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
 
-        if (_gameObject == null)
+        if (_timerCounter + _configData.ClientUpdateInterval < Time.time)
         {
-            _gameObject = GameObject.Instantiate(_configData.PlayerPrefab);
+            _driver.BeginSend(_connection, out var writer);
+            writer.WriteBytes(_clientData.ToByteArray());
+            _driver.EndSend(writer);
+            _timerCounter = Time.time;
         }
-        if (_gameObject)
+
+        foreach (PlayerSceneData p in _players)
         {
-            _gameObject.transform.Translate(_direction * Time.deltaTime);
+            p.GameObject.transform.Translate(p.Direction * Time.deltaTime);
+
         }
     }
 }

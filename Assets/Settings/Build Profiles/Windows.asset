@@ -10,21 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 15003, guid: 0000000000000000e000000000000000, type: 0}
-  m_Name: Windows Server
+  m_Name: Windows
   m_EditorClassIdentifier: 
   m_BuildTarget: 19
-  m_Subtarget: 1
-  m_PlatformId: 8d1e1bca926649cba89d37a4c66e8b3d
+  m_Subtarget: 2
+  m_PlatformId: 4e3c793746204150860bf175a9a41a05
   m_PlatformBuildProfile:
-    rid: 7834698111517458610
-  m_Scenes: []
+    rid: 7834698111202361346
+  m_Scenes:
+  - m_enabled: 1
+    m_path: Assets/Scenes/ClientScene.unity
+  - m_enabled: 0
+    m_path: Assets/Scenes/ServerScene.unity
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:
     m_Settings: []
   references:
     version: 2
     RefIds:
-    - rid: 7834698111517458610
+    - rid: 7834698111202361346
       type: {class: WindowsPlatformSettings, ns: UnityEditor.WindowsStandalone, asm: UnityEditor.WindowsStandalone.Extensions}
       data:
         m_Development: 0
