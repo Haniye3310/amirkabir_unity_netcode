@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -7,25 +7,19 @@ using UnityEngine;
 /// </summary>
 public class PlayerServerData
 {
-    public int PlayerID; //4 bytes
-    public Vector3 PlayerPosition; //12 bytes
+    public int PlayerID;              // 4 bytes
+    public Vector3 PlayerPosition;    // 12 bytes
 
-    public byte[] ToByteArray()
+    public void WriteToStream(ref DataStreamWriter writer)
     {
-        byte[] result = new byte[4 + 12];
-
-        Buffer.BlockCopy(BitConverter.GetBytes(PlayerID), 0, result, 0, 4);
-        Buffer.BlockCopy(DataConverter.Vector3ToBytes(PlayerPosition), 0, result, 4, 12);
-
-        return result;
+        writer.WriteInt(PlayerID);
+        DataConverter.WriteVector3(ref writer, PlayerPosition);
     }
-    public void FromByteArray(byte[] data)
-    {
-        // Read PlayerID (first 4 bytes)
-        PlayerID = BitConverter.ToInt32(data, 0);
 
-        // Read InputDirection (next 8 bytes: X and Y as floats)
-        PlayerPosition = DataConverter.BytesToVector3(data, 4);
+    public void ReadFromStream(DataStreamReader reader)
+    {
+        PlayerID = reader.ReadInt();
+        PlayerPosition = DataConverter.ReadVector3(ref reader);
     }
 }
 
@@ -36,44 +30,31 @@ public class ServerData
 {
     public List<PlayerServerData> PlayerDataList = new List<PlayerServerData>();
 
-    public byte[] ToByteArray()
+    public void WriteToStream(ref DataStreamWriter writer)
     {
-        // Each PlayerData = 16 bytes
-        int count = PlayerDataList.Count;
-        int totalSize = 4 + count * 16; // 4 bytes for count + player data
-        byte[] result = new byte[totalSize];
+        // Write player count first
+        writer.WriteInt(PlayerDataList.Count);
 
-        // Copy player count first
-        Buffer.BlockCopy(BitConverter.GetBytes(count), 0, result, 0, 4);
-
-        // Copy each PlayerData
-        for (int i = 0; i < count; i++)
+        // Write each PlayerServerData
+        foreach (var playerData in PlayerDataList)
         {
-            byte[] playerBytes = PlayerDataList[i].ToByteArray();
-            Buffer.BlockCopy(playerBytes, 0, result, 4 + i * 16, 16);
+            playerData.WriteToStream(ref writer);
         }
-
-        return result;
     }
 
-    public void FromByteArray(byte[] data)
+    public void ReadFromStream(ref DataStreamReader reader)
     {
         PlayerDataList = new List<PlayerServerData>();
 
         // Read player count
-        int count = BitConverter.ToInt32(data, 0);
+        int count = reader.ReadInt();
 
-        // Read each PlayerData
+        // Read each PlayerServerData
         for (int i = 0; i < count; i++)
         {
-            byte[] playerBytes = new byte[16];
-            Buffer.BlockCopy(data, 4 + i * 16, playerBytes, 0, 16);
-
             PlayerServerData pd = new PlayerServerData();
-            pd.FromByteArray(playerBytes);
-
+            pd.ReadFromStream(reader);
             PlayerDataList.Add(pd);
         }
     }
 }
-

@@ -82,7 +82,7 @@ public class Server : MonoBehaviour
             {
                 if (cmd == NetworkEvent.Type.Data)
                 {
-                    _playerDataList[i].ClientData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                    _playerDataList[i].ClientData.ReadFromStream(ref stream);
                 }
                 else if (cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -97,7 +97,7 @@ public class Server : MonoBehaviour
             for (int i = 0; i < _playerDataList.Count; i++)
             {
                 _driver.BeginSend(NetworkPipeline.Null, _playerDataList[i].NetworkConnection, out var writer);
-                writer.WriteBytes(_serverData.ToByteArray());
+                _serverData.WriteToStream(ref writer);
                 _driver.EndSend(writer);
             }
             _timerCounter = Time.time;

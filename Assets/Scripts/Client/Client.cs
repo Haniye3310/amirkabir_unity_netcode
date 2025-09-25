@@ -60,7 +60,7 @@ public class Client:MonoBehaviour
                 }
                 else
                 {
-                    _latestServerData.FromByteArray(DataConverter.StreamDataToByteList(stream));
+                    _latestServerData.ReadFromStream(ref stream);
                 }
 
                 foreach (PlayerServerData p in _latestServerData.PlayerDataList)
@@ -85,7 +85,7 @@ public class Client:MonoBehaviour
         if (_timerCounter + _configData.ClientUpdateInterval < Time.time)
         {
             _driver.BeginSend(_connection, out var writer);
-            writer.WriteBytes(_clientData.ToByteArray());
+            _clientData.WriteToStream(ref writer);
             _driver.EndSend(writer);
             _timerCounter = Time.time;
         }
