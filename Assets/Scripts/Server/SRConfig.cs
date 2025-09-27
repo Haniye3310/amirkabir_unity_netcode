@@ -8,4 +8,6 @@ public class SRConfig : ScriptableObject
 
     [SerializeField, Range(0.01f, 1)] float _serverUpdateInterval = 0.05f;
     public float ServerUpdateInterval => _serverUpdateInterval;
+    [SerializeField] int _reconnectTimeout = 60;
+    public int ReconnectTimeout => _reconnectTimeout;
 }
